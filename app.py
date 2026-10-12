@@ -18,10 +18,10 @@ def enviar_telegram(token, chat_id, msg):
     if not token or not chat_id:
         return
     try:
-        url = "https://api.telegram.org/bot" + token + "/sendMessage"
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=8)
     except Exception as e:
-        print("Error Telegram: " + str(e))
+        print(f"Error Telegram: {e}")
 
 def obtener_precio_binance(fiat, trade_type, pay_types, amount):
     payload = {
@@ -43,7 +43,7 @@ def obtener_precio_binance(fiat, trade_type, pay_types, amount):
                     continue
                 return float(adv["price"]), adv_user.get("nickName", "Comerciante")
     except Exception as e:
-        print("Error P2P: " + str(e))
+        print(f"Error P2P: {e}")
     return None, None
 
 st.title("🚀 Panel de Control P2P & Multi-Bots de Telegram")
@@ -105,15 +105,15 @@ with tab1:
                     c_4x1000 = (cap_cop * IMPUESTO_4X1000) if aplica_4x1000 else 0.0
                     ganancia_cop = bruto_cop - cap_cop - c_4x1000
                     margen_cop = (ganancia_cop / cap_cop) * 100
-                    st.metric(label="Margen Neto COP", value="{:.2f}%".format(margen_cop), delta="${:,.2f} COP".format(ganancia_cop))
-                    st.write("• **Compra:** $" + "{:,.2f}".format(p_c_cop) + " (" + str(n_c_cop) + ")")
-                    st.write("• **Venta:** $" + "{:,.2f}".format(p_v_cop) + " (" + str(n_v_cop) + ")")
+                    st.metric(label="Margen Neto COP", value=f"{margen_cop:.2f}%", delta=f"${ganancia_cop:,.2f} COP")
+                    st.write(f"• **Compra:** ${p_c_cop:,.2f} ({n_c_cop})")
+                    st.write(f"• **Venta:** ${p_v_cop:,.2f} ({n_v_cop})")
                     
-                    msg_cop = "🔄 <b>Estado COP [" + hora + "]</b>\n• Margen: " + "{:.2f}".format(margen_cop) + "% (+${:,.2f} COP)\n• Compra: ${:,.2f} \vert{} Venta:${:,.2f}".format(ganancia_cop, p_c_cop, p_v_cop)
+                    msg_cop = f"🔄 <b>Estado COP [{hora}]</b>\n• Margen: {margen_cop:.2f}% (+${ganancia_cop:,.2f} COP)\n• Compra: ${p_c_cop:,.2f} \vert{} Venta:${p_v_cop:,.2f}"
                     enviar_telegram(token_t1, chat_id_t1, msg_cop)
 
                     if margen_cop >= margen_obj_t1:
-                        alerta_cop = "🚀 <b>¡OPORTUNIDAD P2P EN COP!</b> [" + hora + "]\n• Ganancia: +${:,.2f} COP ({:.2f}%)".format(ganancia_cop, margen_cop)
+                        alerta_cop = f"🚀 <b>¡OPORTUNIDAD P2P EN COP!</b> [{hora}]\n• Ganancia: +${ganancia_cop:,.2f} COP ({margen_cop:.2f}%)"
                         enviar_telegram(token_t1, chat_id_t1, alerta_cop)
                 else:
                     st.warning("Sin datos suficientes en COP.")
@@ -125,15 +125,15 @@ with tab1:
                     bruto_pen = usdt_pen * p_v_pen * (1 - FEE_MAKER)
                     ganancia_pen = bruto_pen - cap_pen
                     margen_pen = (ganancia_pen / cap_pen) * 100
-                    st.metric(label="Margen Neto PEN", value="{:.2f}%".format(margen_pen), delta="S/{:,.3f} PEN".format(ganancia_pen))
-                    st.write("• **Compra:** S/" + "{:,.3f}".format(p_c_pen) + " (" + str(n_c_pen) + ")")
-                    st.write("• **Venta:** S/" + "{:,.3f}".format(p_v_pen) + " (" + str(n_v_pen) + ")")
+                    st.metric(label="Margen Neto PEN", value=f"{margen_pen:.2f}%", delta=f"S/{ganancia_pen:,.3f} PEN")
+                    st.write(f"• **Compra:** S/{p_c_pen:.3f} ({n_c_pen})")
+                    st.write(f"• **Venta:** S/{p_v_pen:.3f} ({n_v_pen})")
 
-                    msg_pen = "🔄 <b>Estado PEN [" + hora + "]</b>\n• Margen: " + "{:.2f}".format(margen_pen) + "% (+S/{:,.3f})\n• Compra: S/{:,.3f} | Venta: S/{:,.3f}".format(ganancia_pen, p_c_pen, p_v_pen)
+                    msg_pen = f"🔄 <b>Estado PEN [{hora}]</b>\n• Margen: {margen_pen:.2f}% (+S/{ganancia_pen:,.3f})\n• Compra: S/{p_c_pen:.3f} | Venta: S/{p_v_pen:.3f}"
                     enviar_telegram(token_t1, chat_id_t1, msg_pen)
 
                     if margen_pen >= margen_obj_t1:
-                        alerta_pen = "🚀 <b>¡OPORTUNIDAD P2P EN PEN!</b> [" + hora + "]\n• Ganancia: +S/{:,.3f} ({:.2f}%)".format(ganancia_pen, margen_pen)
+                        alerta_pen = f"🚀 <b>¡OPORTUNIDAD P2P EN PEN!</b> [{hora}]\n• Ganancia: +S/{ganancia_pen:,.3f} ({margen_pen:.2f}%)"
                         enviar_telegram(token_t1, chat_id_t1, alerta_pen)
                 else:
                     st.warning("Sin datos suficientes en PEN.")
@@ -174,10 +174,10 @@ with tab2:
         factor_4x1000 = (1.0 - IMPUESTO_4X1000) if (aplica_4x1000_t2 and fiat_t2 == 'COP') else 1.0
         precio_meta = (precio_compra_t2 * (1.0 + (margen_pct / 100.0))) / (factor_maker * factor_4x1000)
 
+        decimals_fmt = ",.3f" if fiat_t2 == 'PEN' else ",.2f"
         currency_symbol = "S/" if fiat_t2 == 'PEN' else "$"
-        meta_str = ("{:,.3f}" if fiat_t2 == 'PEN' else "{:,.2f}").format(precio_meta)
 
-        st.metric(label="Precio Meta de Venta (" + fiat_t2 + ")", value=currency_symbol + meta_str)
+        st.metric(label=f"Precio Meta de Venta ({fiat_t2})", value=f"{currency_symbol}{precio_meta:{decimals_fmt}}")
 
         param_amount = '33600' if fiat_t2 == 'COP' else '30'
         pay_types_list = ['BreB', 'Nequi', 'BANK'] if fiat_t2 == 'COP' else ['YAPE', 'PLIN']
@@ -185,20 +185,18 @@ with tab2:
         with st.spinner("Consultando precio actual en Binance..."):
             p_actual, nick_actual = obtener_precio_binance(fiat_t2, "BUY", pay_types_list, param_amount)
             if p_actual:
-                p_act_str = ("{:,.3f}" if fiat_t2 == 'PEN' else "{:,.2f}").format(p_actual)
-                st.info("📊 **Mejor precio de mercado actual (BUY):** " + currency_symbol + p_act_str + " " + fiat_t2 + " (" + str(nick_actual) + ")")
+                st.info(f"📊 **Mejor precio de mercado actual (BUY):** {currency_symbol}{p_actual:{decimals_fmt}} {fiat_t2} ({nick_actual})")
                 
-                msg_radar = "🔄 <b>Radar Ventas [" + hora + "]</b>\n• Mercado: " + currency_symbol + p_act_str + " (" + str(nick_actual) + ")\n• Tu Meta: " + currency_symbol + meta_str
+                msg_radar = f"🔄 <b>Radar Ventas [{hora}]</b>\n• Mercado: {currency_symbol}{p_actual:{decimals_fmt}} ({nick_actual})\n• Tu Meta: {currency_symbol}{precio_meta:{decimals_fmt}}"
                 enviar_telegram(token_t2, chat_id_t2, msg_radar)
 
                 if p_actual >= precio_meta:
-                    st.success("🚨 ¡El precio de mercado superó tu precio meta!")
+                    st.success(f"🚨 ¡El precio de mercado superó tu precio meta!")
                     ganancia = (cant_usdt_t2 * precio_compra_t2) * (margen_pct / 100.0)
-                    gan_str = ("{:,.3f}" if fiat_t2 == 'PEN' else "{:,.2f}").format(ganancia)
-                    msg_alerta = "🚨 <b>¡ALERTA DE VENTA ALCANZADA!</b> [" + hora + "]\n• Meta: " + currency_symbol + meta_str + "\n• Mercado: " + currency_symbol + p_act_str + " (" + str(nick_actual) + ")\n• Ganancia Est: +" + currency_symbol + gan_str
+                    msg_alerta = f"🚨 <b>¡ALERTA DE VENTA ALCANZADA!</b> [{hora}]\n• Meta: {currency_symbol}{precio_meta:{decimals_fmt}}\n• Mercado: {currency_symbol}{p_actual:{decimals_fmt}} ({nick_actual})\n• Ganancia Est: +{currency_symbol}{ganancia:{decimals_fmt}}"
                     enviar_telegram(token_t2, chat_id_t2, msg_alerta)
                 else:
-                    st.warning("⏳ El mercado actual está por debajo de tu meta.")
+                    st.warning(f"⏳ El mercado actual está por debajo de tu meta.")
             else:
                 st.error("No se pudo obtener datos de Binance P2P en este momento.")
 
@@ -246,25 +244,25 @@ with tab3:
                 ganancia_cop = cop_netos - cop_inversion
                 margen_real_pct = (ganancia_cop / cop_inversion) * 100.0
 
-                st.metric(label="Margen Neto Triangulación", value="{:+.2f}%".format(margen_real_pct), delta="${:,.2f} COP".format(ganancia_cop))
-                st.write("• **Vender USDT/PEN:** S/" + "{:,.3f}".format(p_pen_venta) + " (" + str(user_pen_v) + ")")
-                st.write("• **Recomprar USDT/PEN:** S/" + "{:,.3f}".format(p_pen_compra) + " (" + str(user_pen_c) + ")")
-                st.write("• **Vender USDT/COP:** $" + "{:,.2f}".format(p_cop_venta) + " (" + str(user_cop_v) + ")")
-                st.write("• **Retorno Neto en COP:** $" + "{:,.2f}".format(cop_netos) + " COP")
+                st.metric(label="Margen Neto Triangulación", value=f"{margen_real_pct:+.2f}%", delta=f"${ganancia_cop:,.2f} COP")
+                st.write(f"• **Vender USDT/PEN:** S/{p_pen_venta:,.3f} ({user_pen_v})")
+                st.write(f"• **Recomprar USDT/PEN:** S/{p_pen_compra:,.3f} ({user_pen_c})")
+                st.write(f"• **Vender USDT/COP:** ${p_cop_venta:,.2f} ({user_cop_v})")
+                st.write(f"• **Retorno Neto en COP:** ${cop_netos:,.2f} COP")
 
-                msg_trio = "🔄 <b>Triangulación [" + hora + "]</b>\n• Margen: " + "{:+.2f}% (+${:,.2f} COP)".format(margen_real_pct, ganancia_cop)
+                msg_trio = f"🔄 <b>Triangulación [{hora}]</b>\n• Margen: {margen_real_pct:+.2f}% (+${ganancia_cop:,.2f} COP)"
                 enviar_telegram(token_t3, chat_id_t3, msg_trio)
 
                 if margen_real_pct >= margen_pct:
                     st.success("¡Margen objetivo alcanzado!")
                     msg_alerta = (
-                        "🚨 <b>¡OPORTUNIDAD DE TRIANGULACIÓN DETECTADA!</b> [" + hora + "]\n\n"
-                        "📈 <b>Margen Neto Estimado:</b> +" + "{:.2f}%".format(margen_real_pct) + "\n"
-                        "💰 <b>Ganancia Estimada:</b> +$" + "{:,.2f} COP".format(ganancia_cop) + "\n\n"
-                        "📋 <b>PASOS EN BINANCE P2P:</b>\n"
-                        "1. Vender " + "{:,.2f}".format(usdt_inicial_t3) + " USDT a S/" + "{:,.3f}".format(p_pen_venta) + " PEN\n"
-                        "2. Recomprar USDT con PEN a S/" + "{:,.3f}".format(p_pen_compra) + " PEN\n"
-                        "3. Vender USDT finales a $" + "{:,.2f}".format(p_cop_venta) + " COP"
+                        f"🚨 <b>¡OPORTUNIDAD DE TRIANGULACIÓN DETECTADA!</b> [{hora}]\n\n"
+                        f"📈 <b>Margen Neto Estimado:</b> +{margen_real_pct:.2f}%\n"
+                        f"💰 <b>Ganancia Estimada:</b> +${ganancia_cop:,.2f} COP\n\n"
+                        f"📋 <b>PASOS EN BINANCE P2P:</b>\n"
+                        f"1. Vender {usdt_inicial_t3:,.2f} USDT a S/{p_pen_venta:,.3f} PEN\n"
+                        f"2. Recomprar USDT con PEN a S/{p_pen_compra:,.3f} PEN\n"
+                        f"3. Vender USDT finales a ${p_cop_venta:,.2f} COP"
                     )
                     enviar_telegram(token_t3, chat_id_t3, msg_alerta)
                 else:
