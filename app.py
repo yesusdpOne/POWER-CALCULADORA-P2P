@@ -236,3 +236,19 @@ with tab3:
     cap_cop_t3 = st.number_input("Precio Compra Inicial (COP por USDT)", value=3750.0, step=10.0, key="t3_pcompra")
     usdt_inicial_t3 = st.number_input("Cantidad de USDT comprados", value=500.0, step=10.0, key="t3_usdt")
     aplica_4x1000_t3 = st.checkbox("Descontar 4x1000 (Sin cupo COP)", value=False, key="t3_4x1000")
+    margen_obj_t3 = st.selectbox("Margen Objetivo Deseado (%)", [0.2, 0.3, 0.4, 0.5, 0.8, 1.0], index=2, key="t3_margen")
+
+    token_t3 = st.text_input("Token Bot Telegram", value="8991219988:AAGFcr0F40QRjUUBDHGXnnmioeOkTRrBT5o", key="t3_token")
+    chat_id_t3 = st.text_input("Chat ID Telegram", value=CHAT_ID_DEFAULT, key="t3_chat")
+
+    col_btn5, col_btn6 = st.columns(2)
+    with col_btn5:
+        if st.button("🔄 INICIAR TRIANGULACIÓN", key="btn_t3_start"):
+            if not st.session_state.t3_running:
+                st.session_state.t3_running = True
+                threading.Thread(target=loop_triangulacion, args=(cap_cop_t3, usdt_inicial_t3, aplica_4x1000_t3, float(margen_obj_t3), token_t3, chat_id_t3), daemon=True).start()
+                st.success("¡Triangulación iniciada en segundo plano (alerta cada 1 min)!")
+    with col_btn6:
+        if st.button("⏹ DETENER TRIANGULACIÓN", key="btn_t3_stop"):
+            st.session_state.t3_running = False
+            st.warning("Triangulación detenida.")
