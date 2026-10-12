@@ -109,7 +109,7 @@ with tab1:
                     st.write(f"• **Compra:** ${p_c_cop:,.2f} ({n_c_cop})")
                     st.write(f"• **Venta:** ${p_v_cop:,.2f} ({n_v_cop})")
                     
-                    msg_cop = f"🔄 <b>Estado COP [{hora}]</b>\n• Margen: {margen_cop:.2f}% (+${ganancia_cop:,.2f} COP)\n• Compra: ${p_c_cop:,.2f} \vert{} Venta:${p_v_cop:,.2f}"
+                    msg_cop = f"🔄 <b>Estado COP [{hora}]</b>\n• Margen: {margen_cop:.2f}% (+${ganancia_cop:,.2f} COP)\n• Compra: ${p_c_cop:,.2f} - Venta:${p_v_cop:,.2f}"
                     enviar_telegram(token_t1, chat_id_t1, msg_cop)
 
                     if margen_cop >= margen_obj_t1:
@@ -129,7 +129,7 @@ with tab1:
                     st.write(f"• **Compra:** S/{p_c_pen:.3f} ({n_c_pen})")
                     st.write(f"• **Venta:** S/{p_v_pen:.3f} ({n_v_pen})")
 
-                    msg_pen = f"🔄 <b>Estado PEN [{hora}]</b>\n• Margen: {margen_pen:.2f}% (+S/{ganancia_pen:,.3f})\n• Compra: S/{p_c_pen:.3f} | Venta: S/{p_v_pen:.3f}"
+                    msg_pen = f"🔄 <b>Estado PEN [{hora}]</b>\n• Margen: {margen_pen:.2f}% (+S/{ganancia_pen:,.3f})\n• Compra: S/{p_c_pen:.3f} - Venta: S/{p_v_pen:.3f}"
                     enviar_telegram(token_t1, chat_id_t1, msg_pen)
 
                     if margen_pen >= margen_obj_t1:
