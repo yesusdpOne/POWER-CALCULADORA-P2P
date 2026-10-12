@@ -205,4 +205,72 @@ with tab3:
     st.header("Triangulación Dinámica (COP ➔ PEN ➔ COP)")
     st.markdown("Bot Token por defecto: `8991219988:AAGFcr0F40QRjUUBDHGXnnmioeOkTRrBT5o`")
 
-    cap_cop_t3 = st.number_input("Precio Compra Inicial (COP por USDT)", value=37
+    cap_cop_t3 = st.number_input("Precio Compra Inicial (COP por USDT)", value=3750.0, step=10.0, key="t3_pcompra")
+    usdt_inicial_t3 = st.number_input("Cantidad de USDT comprados", value=500.0, step=10.0, key="t3_usdt")
+    aplica_4x1000_t3 = st.checkbox("Descontar 4x1000 (Sin cupo COP)", value=False, key="t3_4x1000")
+    margen_obj_t3 = st.selectbox("Margen Objetivo Deseado (%)", [0.2, 0.3, 0.4, 0.5, 0.8, 1.0], index=2, key="t3_margen")
+
+    token_t3 = st.text_input("Token Bot Telegram", value="8991219988:AAGFcr0F40QRjUUBDHGXnnmioeOkTRrBT5o", key="t3_token")
+    chat_id_t3 = st.text_input("Chat ID Telegram", value=CHAT_ID_DEFAULT, key="t3_chat")
+
+    col_b5, col_b6 = st.columns(2)
+    with col_b5:
+        if st.button("🔄 Iniciar Triangulación Automática", key="btn_t3_start"):
+            st.session_state.t3_running = True
+            enviar_telegram(token_t3, chat_id_t3, "🚀 <b>Radar Triangulación Activado</b> (Reportes cada 1 min)")
+            st.rerun()
+    with col_b6:
+        if st.button("⏹ Detener Triangulación", key="btn_t3_stop"):
+            st.session_state.t3_running = False
+            st.rerun()
+
+    if st.session_state.t3_running or st.button("🔄 Ejecutar Triangulación Ahora", key="btn_t3_manual"):
+        hora = time.strftime("%H:%M:%S")
+        margen_pct = float(margen_obj_t3)
+        with st.spinner("Calculando ruta COP -> PEN -> COP en Binance P2P..."):
+            p_pen_venta, user_pen_v = obtener_precio_binance("PEN", "BUY", ["YAPE", "PLIN"], "30")
+            p_pen_compra, user_pen_c = obtener_precio_binance("PEN", "SELL", ["YAPE", "PLIN"], "30")
+            p_cop_venta, user_cop_v = obtener_precio_binance("COP", "BUY", ["BreB", "Nequi", "BANK"], "33600")
+
+            if p_pen_venta and p_pen_compra and p_cop_venta:
+                tax_4x1000 = IMPUESTO_4X1000 if aplica_4x1000_t3 else 0.0
+
+                pen_recibidos = usdt_inicial_t3 * p_pen_venta * (1.0 - FEE_MAKER)
+                usdt_recomprados = (pen_recibidos / p_pen_compra) * (1.0 - FEE_MAKER)
+                cop_brutos = usdt_recomprados * p_cop_venta * (1.0 - FEE_MAKER)
+                cop_netos = cop_brutos * (1.0 - tax_4x1000)
+
+                cop_inversion = usdt_inicial_t3 * cap_cop_t3
+                ganancia_cop = cop_netos - cop_inversion
+                margen_real_pct = (ganancia_cop / cop_inversion) * 100.0
+
+                st.metric(label="Margen Neto Triangulación", value=f"{margen_real_pct:+.2f}%", delta=f"${ganancia_cop:,.2f} COP")
+                st.write(f"• **Vender USDT/PEN:** S/{p_pen_venta:,.3f} ({user_pen_v})")
+                st.write(f"• **Recomprar USDT/PEN:** S/{p_pen_compra:,.3f} ({user_pen_c})")
+                st.write(f"• **Vender USDT/COP:** ${p_cop_venta:,.2f} ({user_cop_v})")
+                st.write(f"• **Retorno Neto en COP:** ${cop_netos:,.2f} COP")
+
+                msg_trio = f"🔄 <b>Triangulación [{hora}]</b>\n• Margen: {margen_real_pct:+.2f}% (+${ganancia_cop:,.2f} COP)"
+                enviar_telegram(token_t3, chat_id_t3, msg_trio)
+
+                if margen_real_pct >= margen_pct:
+                    st.success("¡Margen objetivo alcanzado!")
+                    msg_alerta = (
+                        f"🚨 <b>¡OPORTUNIDAD DE TRIANGULACIÓN DETECTADA!</b> [{hora}]\n\n"
+                        f"📈 <b>Margen Neto Estimado:</b> +{margen_real_pct:.2f}%\n"
+                        f"💰 <b>Ganancia Estimada:</b> +${ganancia_cop:,.2f} COP\n\n"
+                        f"📋 <b>PASOS EN BINANCE P2P:</b>\n"
+                        f"1. Vender {usdt_inicial_t3:,.2f} USDT a S/{p_pen_venta:,.3f} PEN\n"
+                        f"2. Recomprar USDT con PEN a S/{p_pen_compra:,.3f} PEN\n"
+                        f"3. Vender USDT finales a ${p_cop_venta:,.2f} COP"
+                    )
+                    enviar_telegram(token_t3, chat_id_t3, msg_alerta)
+                else:
+                    st.warning("El margen actual del circuito está por debajo del objetivo configurado.")
+            else:
+                st.error("No se pudieron consultar todos los libros de órdenes necesarios en Binance P2P.")
+
+# --- AUTO-REFRESH CADA 60 SEGUNDOS CUANDO ESTÁ ACTIVO ---
+if st.session_state.t1_running or st.session_state.t2_running or st.session_state.t3_running:
+    time.sleep(60)
+    st.rerun()
