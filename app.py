@@ -62,7 +62,7 @@ if 't1_running' not in st.session_state: st.session_state.t1_running = False
 if 't2_running' not in st.session_state: st.session_state.t2_running = False
 if 't3_running' not in st.session_state: st.session_state.t3_running = False
 
-# --- HILO BUKLE PESTAÑA 1 ---
+# --- HILO BUCLE PESTAÑA 1 ---
 def loop_oportunidades(cap_cop, cap_pen, aplica_4k, margen_obj, token, chat_id):
     msg_ini = f"🚀 <b>¡MÓDULO OPORTUNIDADES P2P ACTIVADO!</b> (Alertas cada 1 min)\n• Margen Obj: {margen_obj}%"
     enviar_telegram(token, chat_id, msg_ini)
@@ -103,7 +103,7 @@ def loop_oportunidades(cap_cop, cap_pen, aplica_4k, margen_obj, token, chat_id):
         
         time.sleep(60)
 
-# --- HILO BUKLE PESTAÑA 2 ---
+# --- HILO BUCLE PESTAÑA 2 ---
 def loop_radar_ventas(fiat, precio_compra, cant_usdt, aplica_4k, margen_pct, token, chat_id):
     factor_maker = 1.0 - FEE_MAKER
     factor_4x1000 = (1.0 - IMPUESTO_4X1000) if (aplica_4k and fiat == 'COP') else 1.0
@@ -135,7 +135,7 @@ def loop_radar_ventas(fiat, precio_compra, cant_usdt, aplica_4k, margen_pct, tok
 
         time.sleep(60)
 
-# --- HILO BUKLE PESTAÑA 3 ---
+# --- HILO BUCLE PESTAÑA 3 ---
 def loop_triangulacion(cap_pcompra, usdt_inicial, aplica_4k, margen_pct, token, chat_id):
     msg_ini = f"🚀 <b>Radar Triangulación Activado</b> (Alertas cada 1 min)\n• Margen Obj: {margen_pct}%"
     enviar_telegram(token, chat_id, msg_ini)
@@ -158,7 +158,6 @@ def loop_triangulacion(cap_pcompra, usdt_inicial, aplica_4k, margen_pct, token, 
                 ganancia_cop = cop_netos - cop_inversion
                 margen_real_pct = (ganancia_cop / cop_inversion) * 100.0
 
-                # Envía reporte de estado cada 1 min a Telegram
                 msg_status = f"🔄 <b>Estado Triangulación [{hora}]</b>\n• Margen Actual: {margen_real_pct:+.2f}%\n• Ganancia Est: ${ganancia_cop:,.2f} COP"
                 enviar_telegram(token, chat_id, msg_status)
 
