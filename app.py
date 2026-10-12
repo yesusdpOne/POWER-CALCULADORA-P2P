@@ -23,7 +23,8 @@ def enviar_telegram(token, chat_id, msg):
     except Exception as e:
         st.error(f"Error Telegram: {e}")
 
-def obtener_precio_p2p(fiat, trade_type, pay_types, amount, min_rate):
+def obtener_precio_binance(fiat, trade_type, pay_types, amount):
+    """Consulta la API P2P de Binance y obtiene el mejor precio válido filtrando comercios seguros."""
     payload = {
         "asset": "USDT", "fiat": fiat, "merchantCheck": False, "publisherType": None,
         "payLimitTime": None, "countries": [], "page": 1, "rows": 20,
@@ -37,24 +38,22 @@ def obtener_precio_p2p(fiat, trade_type, pay_types, amount, min_rate):
                 adv, adv_user = item["adv"], item["advertiser"]
                 if item.get("isPromoted") or adv.get("isPromoted") or adv.get("classify") == "promoted":
                     continue
-                precio = float(adv["price"])
                 rate = float(adv_user.get("monthFinishRate", 0))
                 rate_pct = rate * 100 if rate <= 1.0 else rate
-                min_a = float(adv.get("minSingleTransAmount", 0))
-                max_a = float(adv.get("maxSingleTransAmount", float('inf')))
-                if (amount >= min_a and amount <= max_a) and rate_pct >= (min_rate * 100):
-                    return precio, adv_user.get("nickName", "User"), rate_pct
+                if rate_pct < 90.0:
+                    continue
+                return float(adv["price"]), adv_user.get("nickName", "Comerciante")
     except Exception as e:
         print(f"Error P2P: {e}")
-    return None, "", 0
+    return None, None
 
-st.title("🚀 Panel de Control P2P & Bots de Telegram")
-st.markdown("Plataforma web unificada para monitoreo de oportunidades, radar de ventas y triangulación dinámica.")
+st.title("🚀 Panel de Control P2P & Multi-Bots de Telegram")
+st.markdown("Monitoreo en tiempo real de Oportunidades, Radar de Ventas y Triangulación Dinámica con alertas automáticas.")
 
 tab1, tab2, tab3 = st.tabs([
     "📈 Oportunidades P2P (COP & PEN)",
     "📡 Radar P2P Ventas",
-    "🔄 Triangulación Dinámica"
+    "🔄 Triangulación Dinámica (COP➔PEN➔COP)"
 ])
 
 # --- PESTAÑA 1: OPORTUNIDADES P2P ---
@@ -73,13 +72,24 @@ with tab1:
     token_t1 = st.text_input("Token Bot Telegram", value="8879706084:AAGVdtn5wvpYNyRKOvYjaus97XSLet9H_FY", key="t1_token")
     chat_id_t1 = st.text_input("Chat ID Telegram", value=CHAT_ID_DEFAULT, key="t1_chat")
 
-    if st.button("🔍 Escanear Oportunidades Ahora", key="btn_t1"):
-        with st.spinner("Consultando Binance P2P (COP y PEN)..."):
-            p_c_cop, n_c_cop, _ = obtener_precio_p2p('COP', "SELL", ['BreB', 'Nequi', 'BANK'], 33600.0, 0.90)
-            p_v_cop, n_v_cop, _ = obtener_precio_p2p('COP', "BUY", ['BreB', 'Nequi', 'BANK'], 33600.0, 0.90)
+    if st.button("🚀 Activar y Escanear Oportunidades", key="btn_t1"):
+        # Alerta de activación inicial
+        msg_inicio_t1 = (
+            f"🚀 <b>¡MÓDULO OPORTUNIDADES P2P ACTIVADO!</b> 🚀\n\n"
+            f"• <b>Capital COP:</b> ${cap_cop:,.2f}\n"
+            f"• <b>Capital PEN:</b> S/{cap_pen:,.2f}\n"
+            f"• <b>Margen Objetivo:</b> {margen_obj_t1}%\n"
+            f"📡 <i>Escaneando mercados en Binance...</i>"
+        )
+        enviar_telegram(token_t1, chat_id_t1, msg_inicio_t1)
+        st.success("¡Alerta de activación enviada a Telegram!")
 
-            p_c_pen, n_c_pen, _ = obtener_precio_p2p('PEN', "SELL", ['YAPE', 'PLIN'], 30.0, 0.90)
-            p_v_pen, n_v_pen, _ = obtener_precio_p2p('PEN', "BUY", ['YAPE', 'PLIN'], 30.0, 0.90)
+        with st.spinner("Consultando Binance P2P (COP y PEN)..."):
+            p_c_cop, n_c_cop = obtener_precio_binance('COP', "SELL", ['BreB', 'Nequi', 'BANK'], "33600")
+            p_v_cop, n_v_cop = obtener_precio_binance('COP', "BUY", ['BreB', 'Nequi', 'BANK'], "33600")
+
+            p_c_pen, n_c_pen = obtener_precio_binance('PEN', "SELL", ['YAPE', 'PLIN'], "30")
+            p_v_pen, n_v_pen = obtener_precio_binance('PEN', "BUY", ['YAPE', 'PLIN'], "30")
 
             col_res1, col_res2 = st.columns(2)
             
@@ -97,7 +107,6 @@ with tab1:
                     if margen_cop >= margen_obj_t1:
                         msg = f"🚀 <b>¡OPORTUNIDAD P2P EN COP!</b>\n• Ganancia: +${ganancia_cop:,.2f} COP ({margen_cop:.2f}%)"
                         enviar_telegram(token_t1, chat_id_t1, msg)
-                        st.success("¡Alerta enviada a Telegram!")
                 else:
                     st.warning("Sin datos suficientes en COP.")
 
@@ -114,7 +123,6 @@ with tab1:
                     if margen_pen >= margen_obj_t1:
                         msg = f"🚀 <b>¡OPORTUNIDAD P2P EN PEN!</b>\n• Ganancia: +S/{ganancia_pen:,.3f} ({margen_pen:.2f}%)"
                         enviar_telegram(token_t1, chat_id_t1, msg)
-                        st.success("¡Alerta enviada a Telegram!")
                 else:
                     st.warning("Sin datos suficientes en PEN.")
 
@@ -132,21 +140,31 @@ with tab2:
     token_t2 = st.text_input("Token Bot Telegram", value="8673349898:AAEeBsWnJA4YRgNtEyoJ4fVcPifKSR1pqjg", key="t2_token")
     chat_id_t2 = st.text_input("Chat ID Telegram", value=CHAT_ID_DEFAULT, key="t2_chat")
 
-    if st.button("🎯 Calcular Precio Meta y Verificar Mercado", key="btn_t2"):
+    if st.button("⚡ Activar Radar de Ventas", key="btn_t2"):
         margen_pct = float(margen_obj_t2)
         factor_maker = 1.0 - FEE_MAKER
         factor_4x1000 = (1.0 - IMPUESTO_4X1000) if (aplica_4x1000_t2 and fiat_t2 == 'COP') else 1.0
         precio_meta = (precio_compra_t2 * (1.0 + (margen_pct / 100.0))) / (factor_maker * factor_4x1000)
 
+        # Alerta de activación inicial
+        msg_inicio_t2 = (
+            f"🔴 <b>Radar P2P Activado (Ventas)</b>\n"
+            f"• <b>Moneda:</b> {fiat_t2}\n"
+            f"• <b>Precio Compra:</b> ${precio_compra_t2:,.2f}\n"
+            f"• <b>Margen Neto:</b> {margen_pct}%\n"
+            f"🎯 <b>Precio Meta de Venta:</b> <b>${precio_meta:,.2f} {fiat_t2}</b>\n\n"
+            f"📢 <i>¡Monitoreando mercado en Binance P2P!</i>"
+        )
+        enviar_telegram(token_t2, chat_id_t2, msg_inicio_t2)
+        st.success("¡Alerta de activación enviada a Telegram!")
+
         st.metric(label=f"Precio Meta de Venta ({fiat_t2})", value=f"${precio_meta:,.2f}")
 
-        param_cfg = {
-            'COP': {'trans_amount': '33600', 'pay_types': ['BreB', 'Nequi', 'BANK']},
-            'PEN': {'trans_amount': '30', 'pay_types': ['YAPE', 'PLIN']}
-        }.get(fiat_t2)
+        param_amount = '33600' if fiat_t2 == 'COP' else '30'
+        pay_types_list = ['BreB', 'Nequi', 'BANK'] if fiat_t2 == 'COP' else ['YAPE', 'PLIN']
 
         with st.spinner("Consultando precio actual en Binance..."):
-            p_actual, nick_actual, _ = obtener_precio_p2p(fiat_t2, "BUY", param_cfg['pay_types'], float(param_cfg['trans_amount']), 0.90)
+            p_actual, nick_actual = obtener_precio_binance(fiat_t2, "BUY", pay_types_list, param_amount)
             if p_actual:
                 st.info(f"📊 **Mejor precio de mercado actual (BUY):** ${p_actual:,.2f} {fiat_t2} ({nick_actual})")
                 if p_actual >= precio_meta:
@@ -163,42 +181,71 @@ with tab3:
     st.header("Triangulación Dinámica (COP ➔ PEN ➔ COP)")
     st.markdown("Bot Token por defecto: `8991219988:AAGFcr0F40QRjUUBDHGXnnmioeOkTRrBT5o`")
 
-    cap_cop_t3 = st.number_input("Capital Inicial (COP)", value=1000000.0, step=50000.0, key="t3_cap")
-    p_compra_cop_t3 = st.number_input("Precio Compra USDT (COP)", value=3900.0, step=10.0, key="t3_pcompra")
-    tasa_retorno_t3 = st.number_input("Tasa Retorno (1 PEN = X COP)", value=1020.0, step=1.0, key="t3_tasa")
-    aplica_4x1000_t3 = st.checkbox("Aplicar 4x1000 (Sin Cupo Exento)", value=True, key="t3_4x1000")
-    margen_obj_t3 = st.selectbox("Margen Objetivo de Alerta (%)", [0.3, 0.5, 0.8, 1.0, 1.5], index=1, key="t3_margen")
+    cap_cop_t3 = st.number_input("Precio Compra Inicial (COP por USDT)", value=3750.0, step=10.0, key="t3_pcompra")
+    usdt_inicial_t3 = st.number_input("Cantidad de USDT comprados", value=500.0, step=10.0, key="t3_usdt")
+    aplica_4x1000_t3 = st.checkbox("Descontar 4x1000 (Sin cupo COP)", value=False, key="t3_4x1000")
+    margen_obj_t3 = st.selectbox("Margen Objetivo Deseado (%)", [0.2, 0.3, 0.4, 0.5, 0.8, 1.0], index=2, key="t3_margen")
 
     token_t3 = st.text_input("Token Bot Telegram", value="8991219988:AAGFcr0F40QRjUUBDHGXnnmioeOkTRrBT5o", key="t3_token")
     chat_id_t3 = st.text_input("Chat ID Telegram", value=CHAT_ID_DEFAULT, key="t3_chat")
 
-    if st.button("🔄 Ejecutar Triangulación Ahora", key="btn_t3"):
+    if st.button("🔄 Activar Triangulación Dinámica", key="btn_t3"):
+        margen_pct = float(margen_obj_t3)
+        
+        # Alerta de activación inicial para la triangulación
+        msg_inicio_t3 = (
+            f"🚀 <b>¡RADAR DE TRIANGULACIÓN INTERNA ACTIVADO!</b> 🚀\n\n"
+            f"💵 <b>Precio Compra Inicial:</b> ${cap_cop_t3:,.2f} COP\n"
+            f"📊 <b>USDT en Operación:</b> {usdt_inicial_t3:,.2f} USDT\n"
+            f"🎯 <b>Margen Objetivo:</b> {margen_pct}%\n"
+            f"🏦 <b>Descontar 4x1000:</b> {'Sí' if aplica_4x1000_t3 else 'No'}\n\n"
+            f"📡 <i>Escaneando circuito Binance P2P (COP ➔ PEN ➔ USDT ➔ COP)...</i>"
+        )
+        enviar_telegram(token_t3, chat_id_t3, msg_inicio_t3)
+        st.success("¡Alerta de activación enviada a Telegram!")
+
         with st.spinner("Calculando ruta COP -> PEN -> COP en Binance P2P..."):
-            p_venta_pen, nick_pen = obtener_precio_p2p('PEN', "BUY", ['YAPE', 'PLIN'], 50.0, 0.90)
-            if p_venta_pen:
-                usdt_obtenidos = (cap_cop_t3 / p_compra_cop_t3) * (1.0 - FEE_MAKER)
-                pen_recibidos = usdt_obtenidos * p_venta_pen * (1.0 - FEE_MAKER)
-                cop_brutos = pen_recibidos * tasa_retorno_t3
-                costo_4x1000 = (cap_cop_t3 * IMPUESTO_4X1000) if aplica_4x1000_t3 else 0.0
-                cop_netos = cop_brutos - costo_4x1000
-                ganancia_limpia = cop_netos - cap_cop_t3
-                margen_neto = (ganancia_limpia / cap_cop_t3) * 100.0
+            # Paso A: Vender USDT por PEN (BUY)
+            p_pen_venta, user_pen_v = obtener_precio_binance("PEN", "BUY", ["YAPE", "PLIN"], "30")
+            # Paso B: Recomprar USDT con PEN (SELL)
+            p_pen_compra, user_pen_c = obtener_precio_binance("PEN", "SELL", ["YAPE", "PLIN"], "30")
+            # Paso C: Vender USDT por COP (BUY)
+            p_cop_venta, user_cop_v = obtener_precio_binance("COP", "BUY", ["BreB", "Nequi", "BANK"], "33600")
 
-                st.metric(label="Margen Neto Triangulación", value=f"{margen_neto:.2f}%", delta=f"${ganancia_limpia:,.2f} COP")
-                st.write(f"• **Mejor Venta PEN en Binance:** S/{p_venta_pen:.2f} ({nick_pen})")
-                st.write(f"• **USDT Obtenidos:** {usdt_obtenidos:,.2f}")
-                st.write(f"• **Soles Recibidos:** S/{pen_recibidos:,.2f}")
-                st.write(f"• **Retorno Neto en COP:** ${cop_netos:,.2f}")
+            if p_pen_venta and p_pen_compra and p_cop_venta:
+                tax_4x1000 = IMPUESTO_4X1000 if aplica_4x1000_t3 else 0.0
 
-                if margen_neto >= float(margen_obj_t3):
+                # 1. Vender USDT por PEN
+                pen_recibidos = usdt_inicial_t3 * p_pen_venta * (1.0 - FEE_MAKER)
+                # 2. Recomprar USDT con PEN
+                usdt_recomprados = (pen_recibidos / p_pen_compra) * (1.0 - FEE_MAKER)
+                # 3. Vender USDT por COP
+                cop_brutos = usdt_recomprados * p_cop_venta * (1.0 - FEE_MAKER)
+                cop_netos = cop_brutos * (1.0 - tax_4x1000)
+
+                cop_inversion = usdt_inicial_t3 * cap_cop_t3
+                ganancia_cop = cop_netos - cop_inversion
+                margen_real_pct = (ganancia_cop / cop_inversion) * 100.0
+
+                st.metric(label="Margen Neto Triangulación", value=f"{margen_real_pct:+.2f}%", delta=f"${ganancia_cop:,.2f} COP")
+                st.write(f"• **Vender USDT/PEN:** S/{p_pen_venta:,.3f} ({user_pen_v})")
+                st.write(f"• **Recomprar USDT/PEN:** S/{p_pen_compra:,.3f} ({user_pen_c})")
+                st.write(f"• **Vender USDT/COP:** ${p_cop_venta:,.2f} ({user_cop_v})")
+                st.write(f"• **Retorno Neto en COP:** ${cop_netos:,.2f} COP")
+
+                if margen_real_pct >= margen_pct:
                     st.success("¡Margen objetivo alcanzado y alerta enviada a Telegram!")
-                    msg = (
-                        f"🔄 <b>¡ALERTA DE TRIANGULACIÓN COP➔PEN➔COP!</b>\n"
-                        f"• <b>Ganancia Limpia:</b> +${ganancia_limpia:,.2f} COP\n"
-                        f"• <b>Margen Neto:</b> {margen_neto:.2f}%"
+                    msg_alerta = (
+                        f"🚨 <b>¡OPORTUNIDAD DE TRIANGULACIÓN DETECTADA!</b> 🚨\n\n"
+                        f"📈 <b>Margen Neto Estimado:</b> +{margen_real_pct:.2f}%\n"
+                        f"💰 <b>Ganancia Estimada:</b> +${ganancia_cop:,.2f} COP\n\n"
+                        f"📋 <b>PASOS EN BINANCE P2P:</b>\n"
+                        f"1. Vender {usdt_inicial_t3:,.2f} USDT a S/{p_pen_venta:,.3f} PEN\n"
+                        f"2. Recomprar USDT con PEN a S/{p_pen_compra:,.3f} PEN\n"
+                        f"3. Vender USDT finales a ${p_cop_venta:,.2f} COP"
                     )
-                    enviar_telegram(token_t3, chat_id_t3, msg)
+                    enviar_telegram(token_t3, chat_id_t3, msg_alerta)
                 else:
-                    st.warning("El margen actual está por debajo del objetivo configurado.")
+                    st.warning("El margen actual del circuito está por debajo del objetivo configurado.")
             else:
-                st.error("No se pudo obtener el precio de venta en PEN desde Binance P2P.")
+                st.error("No se pudieron consultar todos los libros de órdenes necesarios en Binance P2P.")
